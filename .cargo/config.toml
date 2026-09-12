@@ -1,0 +1,8 @@
+# The bare wasm target has no host environment, so `rtc-tunnel-wasm` wires the
+# clock and entropy it needs to imports under the `rtc_tunnel` module. See
+# scripts/build-wasm.sh for the reconstructed std that exposes those imports.
+#
+# getrandom 0.3 and 0.4 select a backend through a cfg flag rather than a
+# Cargo feature, so it is set here for the whole target.
+[target.wasm32-unknown-unknown]
+rustflags = ['--cfg', 'getrandom_backend="custom"']

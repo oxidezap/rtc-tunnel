@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Pinned to what release.yml uses, so a release never fails on a toolchain
+  # drift this workflow could not see.
+  NODE_VERSION: 24
+  BUN_VERSION: 1.4.2
+
+jobs:
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-06-16
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all --tests -- -D warnings
+
+      - name: Tests (direct backend)
+        run: cargo test --workspace
+
+      - name: Tests (umbrella backend)
+        run: >
+          cargo test -p rtc-tunnel-core --no-default-features --features rtc-backend
+          --test interop --test lifecycle --test fuzz
+
+      - name: Direct interop against the rtc reference peer
+        run: cargo test -p rtc-tunnel-core --test direct
+
+  wasm:
+    name: WASM
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-06-16
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install wasm tooling
+        run: |
+          scripts/install-wasm-tools.sh --dest "$RUNNER_TEMP/wasm-tools"
+          echo "$RUNNER_TEMP/wasm-tools" >> "$GITHUB_PATH"
+
+      - name: Build and enforce the size budget
+        run: scripts/check-wasm-size.sh
+
+  js:
+    name: JS
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-06-16
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install wasm tooling
+        run: |
+          scripts/install-wasm-tools.sh --dest "$RUNNER_TEMP/wasm-tools"
+          echo "$RUNNER_TEMP/wasm-tools" >> "$GITHUB_PATH"
+
+      # The npm pack test builds the canonical artifact, so the wasm toolchain
+      # is needed here even though this job does not run the size gate.
+      - name: Build the wasm artifact
+        run: scripts/build-wasm.sh
+
+      # The reference peer and answerer the interop tests spawn.
+      - name: Build the reference peers
+        run: cargo build -p rtc-tunnel-refpeer
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install JS dependencies
+        run: npm install --prefix packages/rtc-tunnel
+
+      - name: Build and typecheck
+        run: npm run build --prefix packages/rtc-tunnel
+
+      - name: Tests (Node)
+        run: npm test --prefix packages/rtc-tunnel
+
+      - name: Tests (Bun)
+        run: bun test packages/rtc-tunnel/test
+
+  success:
+    name: All checks passed
+    if: always()
+    needs: [rust, wasm, js]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail unless every job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          set -euo pipefail
+          echo "results: $RESULTS"
+          for result in $RESULTS; do
+            case "$result" in
+              success | skipped) ;;
+              *) echo "::error::a required job ended in '$result'"; exit 1 ;;
+            esac
+          done
+          echo "All checks passed!"
