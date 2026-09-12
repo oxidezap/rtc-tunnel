@@ -1,0 +1,26 @@
+[package]
+name = "rtc-tunnel-refpeer"
+description = "Reference peers for interop tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "rtc-tunnel-refpeer"
+path = "src/main.rs"
+
+[[bin]]
+name = "rtc-tunnel-answerer"
+path = "src/answerer.rs"
+
+[dependencies]
+base64.workspace = true
+bytes.workspace = true
+env_logger = { version = "0.11", default-features = false, features = ["auto-color", "humantime"] }
+rtc.workspace = true
+# The answerer drives the shipped direct backend. The refpeer binary builds its
+# own peer connection on the umbrella `rtc` crate, so it stays an independent
+# implementation from whatever the tunnel under test uses.
+rtc-tunnel-core = { path = "../rtc-tunnel-core" }

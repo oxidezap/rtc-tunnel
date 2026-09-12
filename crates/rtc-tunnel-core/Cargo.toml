@@ -1,0 +1,38 @@
+[package]
+name = "rtc-tunnel-core"
+description = "Sans-I/O single pre-negotiated data channel over ICE/DTLS/SCTP"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[features]
+# The direct backend drives rtc-ice/rtc-dtls/rtc-sctp and is what ships. Build
+# with `--no-default-features` to drop every protocol dependency.
+default = ["direct"]
+rtc-backend = ["dep:rtc"]
+direct = [
+  "dep:rtc-ice",
+  "dep:rtc-dtls",
+  "dep:rtc-sctp",
+  "dep:rtc-crypto",
+  "dep:rcgen",
+  "dep:sansio",
+]
+
+[dependencies]
+bytes.workspace = true
+rcgen = { version = "0.14", default-features = false, features = ["pem"], optional = true }
+rtc = { workspace = true, optional = true }
+rtc-crypto = { version = "0.21.0-rc.2", default-features = false, optional = true }
+rtc-dtls = { version = "0.21.0-rc.2", features = ["crypto-ring"], optional = true }
+rtc-ice = { version = "0.21.0-rc.2", optional = true }
+rtc-sctp = { version = "0.21.0-rc.2", optional = true }
+rtc-shared = { version = "0.21.0-rc.2", default-features = false, features = ["marshal", "replay"] }
+sansio = { version = "1", optional = true }
+
+[dev-dependencies]
+# The integration tests pair the tunnel with a reference peer built on the
+# umbrella `rtc` crate, independent of whichever backend is under test.
+rtc.workspace = true

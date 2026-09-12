@@ -1,0 +1,76 @@
+{
+  "name": "@oxidezap/rtc-tunnel",
+  "version": "0.1.0",
+  "description": "Provider-agnostic tunnel over one pre-negotiated binary data channel",
+  "author": "Jo\u00e3o Lucas <jlucaso@hotmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oxidezap/rtc-tunnel.git"
+  },
+  "homepage": "https://github.com/oxidezap/rtc-tunnel#readme",
+  "bugs": {
+    "url": "https://github.com/oxidezap/rtc-tunnel/issues"
+  },
+  "keywords": [
+    "webrtc",
+    "datachannel",
+    "sctp",
+    "dtls",
+    "ice",
+    "wasm",
+    "rust",
+    "tunnel"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./advanced": {
+      "types": "./dist/advanced.d.ts",
+      "import": "./dist/advanced.js"
+    },
+    "./wasm": {
+      "types": "./dist/engine/wasm.d.ts",
+      "import": "./dist/engine/wasm.js"
+    },
+    "./wasm/rtc_tunnel.wasm": "./wasm/rtc_tunnel.wasm"
+  },
+  "files": [
+    "dist",
+    "wasm/rtc_tunnel.wasm",
+    "README.md",
+    "LICENSE",
+    "THIRD-PARTY.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "npm run build && node scripts/ensure-wasm.mjs",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "typescript": "^7.0.2",
+    "werift": "^0.24.4"
+  }
+}

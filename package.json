@@ -1,0 +1,23 @@
+{
+  "name": "rtc-tunnel-repo",
+  "private": true,
+  "description": "Dev-only root manifest for the benchmark harness. The published package has no runtime dependencies.",
+  "type": "module",
+  "scripts": {
+    "wasm:build": "scripts/build-wasm.sh",
+    "wasm:size": "scripts/check-wasm-size.sh",
+    "bench:build": "scripts/build-bench.sh",
+    "bench": "node benches/run.ts --json target/bench-report.json",
+    "bench:stats": "node --expose-gc benches/stats.ts",
+    "bench:impair": "node --expose-gc benches/impairment.ts",
+    "typecheck": "npm run typecheck --prefix packages/rtc-tunnel",
+    "build": "npm run build --prefix packages/rtc-tunnel",
+    "test:js": "npm test --prefix packages/rtc-tunnel",
+    "golden": "scripts/golden.sh",
+    "verify:vendor": "scripts/verify-vendored-rtc.sh"
+  },
+  "devDependencies": {
+    "@koush/wrtc": "^0.5.3",
+    "werift": "^0.24.4"
+  }
+}
