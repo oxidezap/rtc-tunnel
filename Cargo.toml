@@ -1,0 +1,45 @@
+[workspace]
+members = ["crates/rtc-tunnel-core", "crates/rtc-tunnel-refpeer", "crates/rtc-tunnel-wasm"]
+exclude = ["vendor/rtc", "vendor/rtc-mdns"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/oxidezap/rtc-tunnel"
+
+[workspace.dependencies]
+base64 = "0.23"
+bytes = "1"
+rtc = "0.21.0-rc.2"
+sansio = "1"
+
+# `rtc` is vendored so a local, precise patch can fix the DTLS initial-flight
+# scheduling without waiting on upstream. See `patches/rtc/README.md` for the
+# patch list and the condition that retires each one.
+#
+# `rtc-ice` depends on `rtc-mdns`, and `rtc-mdns` depends on `socket2`, which
+# does not target wasm. The vendored copy gates the `socket2`-backed
+# `MulticastSocket` helper to non-wasm targets. The mDNS protocol itself never
+# uses that helper, and native builds are otherwise byte-identical to upstream.
+#
+# `getrandom` 0.2 must prefer its `custom` backend over `js` when `ring` enables
+# `wasm32_unknown_unknown_js`, so the wasm build needs no wasm-bindgen glue.
+#
+# `rustls-pki-types` must use `std`'s `SystemTime` on wasm, which the
+# reconstructed std provides, instead of `web-time`/wasm-bindgen.
+[patch.crates-io]
+rtc = { path = "vendor/rtc" }
+rtc-mdns = { path = "vendor/rtc-mdns" }
+getrandom = { path = "vendor/getrandom" }
+rustls-pki-types = { path = "vendor/rustls-pki-types" }
+
+[profile.release]
+# This artifact is download-bound rather than CPU-bound. `z` produces a smaller
+# raw and Brotli-compressed wasm than `s` for the current rtc dependency graph.
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

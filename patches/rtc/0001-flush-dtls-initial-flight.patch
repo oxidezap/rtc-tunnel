@@ -1,0 +1,27 @@
+--- a/src/peer_connection/handler/dtls.rs	2006-07-23 22:21:28.000000000 -0300
++++ b/src/peer_connection/handler/dtls.rs	2026-09-11 17:53:54.764473553 -0300
+@@ -325,6 +325,24 @@
+                         dtls_handshake_config,
+                         None,
+                     )?;
++                    // PATCH 0001: publish the flight `connect()` just produced.
++                    //
++                    // `connect()` queues the ClientHello as a transmit, but this
++                    // pipeline only drains `poll_transmit()` in `handle_timeout`.
++                    // A caller that advances time on `poll_timeout()` alone,
++                    // which is the correct sans-I/O contract, then waits for the
++                    // next scheduled timer before the ClientHello leaves. During
++                    // ICE establishment that timer can be the ICE check
++                    // interval, so the handshake stalls for up to that interval.
++                    // Draining here attaches the output to the event that caused
++                    // it, with no timer and no artificial timeout pass.
++                    while let Some(transmit) = dtls_endpoint.poll_transmit() {
++                        self.ctx.write_outs.push_back(TaggedRTCMessageInternal {
++                            now: transmit.now,
++                            transport: transmit.transport,
++                            message: RTCMessageInternal::Dtls(DTLSMessage::Raw(transmit.message)),
++                        });
++                    }
+                 };
+             }
+         } else {
