@@ -1,0 +1,7 @@
+/target
+**/node_modules
+packages/rtc-tunnel/dist
+*.wasm
+*.wasm.d.ts
+# The published package ships this one artifact, so it is tracked.
+!packages/rtc-tunnel/wasm/rtc_tunnel.wasm

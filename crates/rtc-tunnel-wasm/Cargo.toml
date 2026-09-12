@@ -1,0 +1,37 @@
+[package]
+name = "rtc-tunnel-wasm"
+description = "Minimal C ABI over rtc-tunnel-core for bare wasm32-unknown-unknown"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# The direct protocol backend is what ships. `rtc-backend` keeps the umbrella
+# peer connection available as a fallback. Both expose the same ABI.
+default = ["direct"]
+rtc-backend = ["rtc-tunnel-core/rtc-backend"]
+direct = ["rtc-tunnel-core/direct"]
+
+[dependencies]
+rtc-tunnel-core = { path = "../rtc-tunnel-core", default-features = false }
+
+# The bare wasm target has no clock or entropy. The reconstructed std (see
+# scripts/build-wasm.sh) exposes both as imports in the `rtc_tunnel` module, and
+# the crypto stack pulls randomness through `getrandom`'s custom backend. These
+# edges exist only to select those backends; they add no code of their own.
+[target.'cfg(target_family = "wasm")'.dependencies]
+getrandom02 = { package = "getrandom", version = "0.2", features = ["custom"] }
+getrandom03 = { package = "getrandom", version = "0.3" }
+getrandom04 = { package = "getrandom", version = "0.4" }
+# Gives `ring` a `SecureRandom` on the bare wasm target. The vendored
+# getrandom's `js` feature is empty, so this pulls in no wasm-bindgen glue;
+# randomness still comes from `__getrandom_custom`.
+ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
+# Selects what supplies `uuid`'s randomness on the bare wasm target, which
+# otherwise fails to compile.
+uuid = { version = "1", default-features = false, features = ["v4", "rng-getrandom"] }
