@@ -58,7 +58,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.sha || github.sha }}
           persist-credentials: false
@@ -102,7 +102,7 @@ jobs:
           scripts/install-wasm-tools.sh --dest "$RUNNER_TEMP/wasm-tools"
           echo "$RUNNER_TEMP/wasm-tools" >> "$GITHUB_PATH"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -119,7 +119,7 @@ jobs:
           cat dist.sha256
 
       - name: Hand the verified build to publish
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: npm-tarball
           path: |
@@ -144,18 +144,18 @@ jobs:
       # long-lived NPM_TOKEN lives in this repository.
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.sha || github.sha }}
           persist-credentials: false
 
       - name: Take the build verify vouched for
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: npm-tarball
           path: .
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
 
