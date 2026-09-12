@@ -50,7 +50,14 @@ jobs:
           toolchain: nightly-2026-06-16
           targets: wasm32-unknown-unknown
 
+      # Registry caches only, never compiled targets: a benchmark must not
+      # inherit another job's artifacts, and the walker must not descend into
+      # stale hermetic homes. The prefix starts a fresh key so the previously
+      # cached `target/cargo-home` copy is never restored again.
       - uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+        with:
+          cache-targets: false
+          prefix-key: v1-rtc-tunnel-bench
 
       - name: Install wasm tooling
         run: |
@@ -63,6 +70,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: benches/peer/go.mod
+          cache-dependency-path: benches/peer/go.sum
 
       - name: Build the benchmark dependencies
         run: scripts/build-bench.sh
