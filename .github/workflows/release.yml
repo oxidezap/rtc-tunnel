@@ -32,9 +32,11 @@ jobs:
       contents: write
       pull-requests: write
     outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-      sha: ${{ steps.release.outputs.sha }}
+      # The component lives in a non-root path, so release-please prefixes the
+      # outputs with it. A path containing `/` needs bracket access.
+      release_created: ${{ steps.release.outputs['packages/rtc-tunnel--release_created'] }}
+      tag_name: ${{ steps.release.outputs['packages/rtc-tunnel--tag_name'] }}
+      sha: ${{ steps.release.outputs['packages/rtc-tunnel--sha'] }}
     steps:
       - id: release
         uses: googleapis/release-please-action@v5
