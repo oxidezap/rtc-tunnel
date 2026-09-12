@@ -7,9 +7,9 @@
  * `tunnel / wrtc` per pair with a bootstrap confidence interval. The win
  * condition is a 95% interval whose lower bound is above 1.0.
  *
- * Both backends run on the same CPU set and the peer is pinned elsewhere, so
- * the comparison is not dominated by scheduler placement. Change the sets with
- * STATS_DUT_CPUS and STATS_PEER_CPUS.
+ * Pinning is opt-in for shared machines: set STATS_DUT_CPUS and
+ * STATS_PEER_CPUS to pin the backends and the peer apart, so the comparison
+ * is not dominated by scheduler placement. Unset, everything floats.
  *
  * Run with `node --expose-gc benches/stats.ts` or `npm run bench:stats`.
  */
@@ -27,8 +27,8 @@ const PAIRS = Number(process.env.STATS_PAIRS ?? 20);
 const DURATION_MS = Number(process.env.STATS_MS ?? 3000);
 const PAYLOAD = Number(process.env.STATS_PAYLOAD ?? 1200);
 const WINDOW = Number(process.env.STATS_WINDOW ?? 256);
-const DUT_CPUS = process.env.STATS_DUT_CPUS ?? "4-9";
-const PEER_CPUS = process.env.STATS_PEER_CPUS ?? "10-13";
+const DUT_CPUS = process.env.STATS_DUT_CPUS;
+const PEER_CPUS = process.env.STATS_PEER_CPUS;
 
 const BACKENDS = {
   tunnel: join(here, "backends/rtc-tunnel.ts"),
@@ -40,22 +40,22 @@ type BackendName = keyof typeof BACKENDS;
 /** Runs one backend and returns its video throughput, or null on failure. */
 function runBackend(name: BackendName, host: string): Promise<number | null> {
   return new Promise((resolve) => {
-    const child = spawn(
-      "taskset",
-      ["-c", DUT_CPUS, process.execPath, "--expose-gc", BACKENDS[name]],
-      {
-        cwd: root,
-        env: {
-          ...process.env,
-          BENCH_HOST: host,
-          BENCH_PEER_CPUS: PEER_CPUS,
-          BENCH_SKIP: "rtt,burst,cadence,lifecycle",
-          BENCH_THROUGHPUT_MS: String(DURATION_MS),
-          BENCH_CONNECT_SAMPLES: "1",
-          BENCH_LIFECYCLE_COUNTS: "1",
-        },
+    const command = DUT_CPUS ? "taskset" : process.execPath;
+    const args = DUT_CPUS
+      ? ["-c", DUT_CPUS, process.execPath, "--expose-gc", BACKENDS[name]]
+      : ["--expose-gc", BACKENDS[name]];
+    const child = spawn(command, args, {
+      cwd: root,
+      env: {
+        ...process.env,
+        BENCH_HOST: host,
+        ...(PEER_CPUS ? { BENCH_PEER_CPUS: PEER_CPUS } : {}),
+        BENCH_SKIP: "rtt,burst,cadence,lifecycle",
+        BENCH_THROUGHPUT_MS: String(DURATION_MS),
+        BENCH_CONNECT_SAMPLES: "1",
+        BENCH_LIFECYCLE_COUNTS: "1",
       },
-    );
+    });
     let stdout = "";
     child.stdout.on("data", (chunk) => (stdout += chunk));
     child.stderr.on("data", () => {});
@@ -92,9 +92,10 @@ function bootstrapMedianCI(ratios: number[], iterations = 5000): { low: number; 
 
 async function main(): Promise<void> {
   const host = benchHost();
+  const pinning = DUT_CPUS ? `DUT cpus ${DUT_CPUS}, peer cpus ${PEER_CPUS ?? "any"}, ` : "unpinned, ";
   console.log(
     `paired throughput: ${PAIRS} pairs, ${PAYLOAD} B, window ${WINDOW}, ${DURATION_MS} ms per run\n` +
-      `  DUT cpus ${DUT_CPUS}, peer cpus ${PEER_CPUS}, interface ${host}`,
+      `  ${pinning}interface ${host}`,
   );
 
   const tunnelRuns: number[] = [];

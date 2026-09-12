@@ -1,0 +1,89 @@
+name: Benchmark
+
+# Benchmarks are noisy on shared runners, so this reports numbers rather than
+# gating on them. It runs on main and on pull requests and writes a markdown
+# summary to the run page, so a throughput or memory change is visible in review
+# without anyone running the harness locally.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # On-demand runs while tuning the harness.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  NODE_VERSION: 24
+  # Shorter than a developer run: enough to compare backends, not to replace a
+  # pinned run on real hardware.
+  BENCH_CONNECT_SAMPLES: 20
+  BENCH_THROUGHPUT_MS: 3000
+  BENCH_CADENCE_MS: 3000
+  BENCH_LIFECYCLE_COUNTS: 20
+
+jobs:
+  benchmark:
+    name: Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-06-16
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+
+      - name: Install wasm tooling
+        run: |
+          scripts/install-wasm-tools.sh --dest "$RUNNER_TEMP/wasm-tools"
+          echo "$RUNNER_TEMP/wasm-tools" >> "$GITHUB_PATH"
+
+      # `scripts/build-bench.sh` also builds the core benchmark with the host
+      # toolchain, and the neutral Pion peer with Go. go.mod needs a newer Go
+      # than the runner image guarantees, so pin it from the module file.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: benches/peer/go.mod
+
+      - name: Build the benchmark dependencies
+        run: scripts/build-bench.sh
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install harness dependencies
+        run: npm install
+
+      # Each phase writes its output; the summary step folds all of them into
+      # one markdown block. The paired and impairment suites are text, so their
+      # stdout is captured to files beside the JSON report.
+      - name: Comparative benchmark
+        run: npm run bench
+
+      - name: Paired comparison against wrtc
+        run: npm run bench:stats | tee target/bench-stats.txt
+
+      - name: Impairment
+        run: npm run bench:impair | tee target/bench-impair.txt
+
+      # Always render, even when a phase fails: a partial summary still shows
+      # which backends produced numbers and which did not.
+      - name: Render the summary
+        if: always()
+        run: node scripts/bench-summary.mjs target/bench-report.json >> "$GITHUB_STEP_SUMMARY"
