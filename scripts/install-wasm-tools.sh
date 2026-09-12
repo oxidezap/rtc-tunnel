@@ -48,5 +48,7 @@ fetch \
 tar -xzf "$workdir/wasm-tools.tar.gz" -C "$workdir"
 install -m 0755 "$workdir/wasm-tools-${wasm_tools_version}-x86_64-linux/wasm-tools" "$dest/wasm-tools"
 
-echo "wasm-opt: $(wasm-opt --version)"
-echo "wasm-tools: $(wasm-tools --version)"
+# Query by absolute path: `$GITHUB_PATH` only reaches later steps, so the
+# bare names are not on PATH yet inside this script.
+echo "wasm-opt: $("$dest/wasm-opt" --version)"
+echo "wasm-tools: $("$dest/wasm-tools" --version)"

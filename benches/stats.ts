@@ -15,6 +15,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { cpus } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -92,10 +93,13 @@ function bootstrapMedianCI(ratios: number[], iterations = 5000): { low: number; 
 
 async function main(): Promise<void> {
   const host = benchHost();
-  const pinning = DUT_CPUS ? `DUT cpus ${DUT_CPUS}, peer cpus ${PEER_CPUS ?? "any"}, ` : "unpinned, ";
+  const cpuCount = cpus().length;
+  const affinity = DUT_CPUS
+    ? `CPU affinity: pinned (DUT ${DUT_CPUS}, peer ${PEER_CPUS ?? "any"})`
+    : `CPU affinity: unpinned (${cpuCount} logical CPUs; alternating pair order is the control)`;
   console.log(
     `paired throughput: ${PAIRS} pairs, ${PAYLOAD} B, window ${WINDOW}, ${DURATION_MS} ms per run\n` +
-      `  ${pinning}interface ${host}`,
+      `  ${affinity}, interface ${host}`,
   );
 
   const tunnelRuns: number[] = [];
@@ -146,15 +150,37 @@ async function main(): Promise<void> {
     `  ratio p25/p75   ${quantile(sorted, 0.25).toFixed(3)} / ${quantile(sorted, 0.75).toFixed(3)}`,
   );
   console.log(`  ratio 95% CI    ${ci.low.toFixed(3)} .. ${ci.high.toFixed(3)}`);
-  console.log(
-    `  pairs           ${ratios.length}, tunnel ahead in ${ratios.filter((r) => r > 1).length}`,
-  );
-  console.log(
+  const wins = ratios.filter((r) => r > 1).length;
+  console.log(`  pairs           ${ratios.length}, tunnel ahead in ${wins}`);
+  const verdict =
     ci.low > 1.0
-      ? "  verdict         tunnel is ahead with 95% confidence"
+      ? "tunnel is ahead with 95% confidence"
       : ci.high < 1.0
-        ? "  verdict         wrtc is ahead with 95% confidence"
-        : "  verdict         no significant difference at 95%",
+        ? "wrtc is ahead with 95% confidence"
+        : "no significant difference at 95%";
+  console.log(`  verdict         ${verdict}`);
+  // Machine-readable result for the CI summary. The human lines above stay
+  // the source of truth in raw logs.
+  console.log(
+    `STATS_JSON ${JSON.stringify({
+      pairs: PAIRS,
+      completePairs: ratios.length,
+      payloadBytes: PAYLOAD,
+      window: WINDOW,
+      durationMs: DURATION_MS,
+      tunnelMedian: Math.round(tunnelMedian),
+      wrtcMedian: Math.round(wrtcMedian),
+      ratioMedian: Number(median.toFixed(3)),
+      ratioP25: Number(quantile(sorted, 0.25).toFixed(3)),
+      ratioP75: Number(quantile(sorted, 0.75).toFixed(3)),
+      ciLow: Number(ci.low.toFixed(3)),
+      ciHigh: Number(ci.high.toFixed(3)),
+      wins,
+      verdict,
+      affinity: DUT_CPUS
+        ? { pinned: true, dut: DUT_CPUS, peer: PEER_CPUS ?? null }
+        : { pinned: false, logicalCpus: cpuCount },
+    })}`,
   );
 }
 

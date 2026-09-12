@@ -12,10 +12,10 @@
 # it with `scripts/wasm-std/{time,random}.rs` routed to host imports named
 # `now_micros`, `unix_millis` and `fill_random` in the `rtc_tunnel` module.
 #
-# The toolchain is never modified in place. `RUSTUP_HOME` defaults to a
-# disposable directory outside `target/`, so `rm -rf .cache` removes every trace
-# and a CI cache that restores `target/` never brings back the patched std.
-# `CARGO_HOME` stays under `target/` so the crate cache survives. Point
+# The toolchain is never modified in place. Both homes default to disposable
+# directories under `.cache/`, outside `target/`, so `rm -rf .cache` removes
+# every trace and a CI cache that restores `target/` never brings back the
+# patched std or trips over the hermetic registry copy. Point
 # `RTC_TUNNEL_CARGO_HOME` at an existing cargo home to reuse its crate cache.
 #
 # Usage: scripts/build-wasm.sh [--debug]
@@ -30,11 +30,13 @@ if [[ "${1:-}" == "--debug" ]]; then
   mode="debug"
 fi
 
-# Isolated, disposable homes. The toolchain lives outside target/ on purpose:
-# `target/` is what CI caches, and a restored patched std makes
-# `rustup toolchain install` fail on the modified rust-src.
+# Isolated, disposable homes. Both live outside target/ on purpose: `target/`
+# is what CI caches, and a restored patched std makes
+# `rustup toolchain install` fail on the modified rust-src, while a restored
+# registry copy makes the cache action's post-job walk fail on entries cargo
+# itself manages.
 export RUSTUP_HOME="${RTC_TUNNEL_RUSTUP_HOME:-$repo_root/.cache/rustup}"
-export CARGO_HOME="${RTC_TUNNEL_CARGO_HOME:-$repo_root/target/cargo-home}"
+export CARGO_HOME="${RTC_TUNNEL_CARGO_HOME:-$repo_root/.cache/cargo-home}"
 mkdir -p "$RUSTUP_HOME" "$CARGO_HOME"
 
 # The rustup on PATH is itself a proxy that expects the real rustup binary to

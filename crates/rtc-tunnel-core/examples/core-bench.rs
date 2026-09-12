@@ -9,7 +9,7 @@
 use std::net::SocketAddr;
 use std::time::Instant;
 
-use rtc_tunnel_core::{Event, SendResult, Tunnel, TunnelConfig};
+use rtc_tunnel_core::{direct::DirectTunnel, Event, SendResult, TunnelConfig};
 
 const OFFERER: &str = "127.0.0.1:41000";
 const ANSWERER: &str = "127.0.0.1:41001";
@@ -25,8 +25,16 @@ fn config(remote: &str) -> TunnelConfig {
     config
 }
 
+/// Reads one `a=<name>:<value>` line from an SDP answer.
+fn answer_value(answer: &str, name: &str) -> String {
+    answer
+        .lines()
+        .find_map(|line| line.strip_prefix(name).map(str::to_owned))
+        .unwrap_or_else(|| panic!("answer carried no {name} line"))
+}
+
 /// Moves every queued datagram between the two tunnels, counting messages.
-fn pump(offerer: &mut Tunnel, answerer: &mut Tunnel, now: u64, received: &mut u64) {
+fn pump(offerer: &mut DirectTunnel, answerer: &mut DirectTunnel, now: u64, received: &mut u64) {
     let mut moved = true;
     while moved {
         moved = false;
@@ -53,11 +61,22 @@ fn main() {
     let offerer_local: SocketAddr = OFFERER.parse().unwrap();
     let answerer_local: SocketAddr = ANSWERER.parse().unwrap();
 
-    let mut offerer = Tunnel::offerer(config(ANSWERER), offerer_local, 0).unwrap();
+    let mut offerer = DirectTunnel::offerer(config(ANSWERER), offerer_local, 0).unwrap();
     let offer = offerer.offer_sdp().unwrap();
-    let mut answerer = Tunnel::answerer(config(OFFERER), answerer_local, &offer, 0).unwrap();
+    let mut answerer = DirectTunnel::answerer(config(OFFERER), answerer_local, &offer, 0).unwrap();
     let answer = answerer.answer_sdp().unwrap();
     offerer.apply_remote_answer_sdp(&answer).unwrap();
+    // Each tunnel generates its own ICE credentials, so the offerer's
+    // configured guess never matches the answerer. The answer carries the real
+    // ones; without this the checks fail both ways and the handshake times
+    // out. The relay never needs it because the peer uses provisioned
+    // credentials.
+    offerer
+        .set_remote_ice_credentials(
+            answer_value(&answer, "a=ice-ufrag:"),
+            answer_value(&answer, "a=ice-pwd:"),
+        )
+        .unwrap();
 
     let mut now = 0u64;
     let mut received = 0u64;
