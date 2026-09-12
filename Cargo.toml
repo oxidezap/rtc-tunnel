@@ -10,7 +10,7 @@ license = "MIT"
 repository = "https://github.com/oxidezap/rtc-tunnel"
 
 [workspace.dependencies]
-base64 = "0.22"
+base64 = "0.23"
 bytes = "1"
 rtc = "0.21.0-rc.2"
 sansio = "1"
