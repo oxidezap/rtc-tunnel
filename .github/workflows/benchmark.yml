@@ -3,7 +3,8 @@ name: Benchmark
 # Benchmarks are noisy on shared runners, so this reports numbers rather than
 # gating on them. It runs on main and on pull requests and writes a markdown
 # summary to the run page, so a throughput or memory change is visible in review
-# without anyone running the harness locally.
+# without anyone running the harness locally. Absolute numbers are
+# informational; the paired ratios and the trend across runs carry the signal.
 
 on:
   push:
@@ -33,7 +34,10 @@ env:
 jobs:
   benchmark:
     name: Run
-    runs-on: ubuntu-latest
+    # Pinned image family: the hosted `latest` moves under the trend otherwise,
+    # and a silent image change reads as a performance change. Each run records
+    # its exact image version in the summary environment section.
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,7 +45,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
         with:
           toolchain: nightly-2026-06-16
           targets: wasm32-unknown-unknown
@@ -56,7 +60,7 @@ jobs:
       # `scripts/build-bench.sh` also builds the core benchmark with the host
       # toolchain, and the neutral Pion peer with Go. go.mod needs a newer Go
       # than the runner image guarantees, so pin it from the module file.
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: benches/peer/go.mod
 
@@ -67,8 +71,15 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      # Exact lockfile graph: the benchmark must measure the committed
+      # dependencies, not whatever `install` would resolve today.
       - name: Install harness dependencies
-        run: npm install
+        run: npm ci
+
+      # Record the toolchain up front so the summary names its environment even
+      # when a later phase fails.
+      - name: Record the runner environment
+        run: node scripts/bench-env.mjs target/bench-env.json
 
       # Each phase writes its output; the summary step folds all of them into
       # one markdown block. The paired and impairment suites are text, so their
@@ -87,3 +98,17 @@ jobs:
       - name: Render the summary
         if: always()
         run: node scripts/bench-summary.mjs target/bench-report.json >> "$GITHUB_STEP_SUMMARY"
+
+      # Raw outputs for later regression archaeology. Kept out of git; a
+      # missing file warns instead of failing the run.
+      - name: Upload the raw benchmark outputs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bench-outputs
+          if-no-files-found: warn
+          path: |
+            target/bench-report.json
+            target/bench-env.json
+            target/bench-stats.txt
+            target/bench-impair.txt

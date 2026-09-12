@@ -36,3 +36,8 @@ sansio = { version = "1", optional = true }
 # The integration tests pair the tunnel with a reference peer built on the
 # umbrella `rtc` crate, independent of whichever backend is under test.
 rtc.workspace = true
+
+[[example]]
+name = "core-bench"
+# The benchmark wires two direct tunnels together and uses direct-only APIs.
+required-features = ["direct"]

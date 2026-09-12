@@ -764,6 +764,19 @@ impl DirectTunnel {
         self.remote_addr = remote;
     }
 
+    /// Replaces the remote ICE credentials, as when they arrive in an answer.
+    ///
+    /// The relay path provisions the peer credentials up front and never calls
+    /// this. It exists for hosts that complete a real offer/answer exchange
+    /// against a peer with its own credentials, such as the Sans-I/O core
+    /// benchmark wiring two tunnels together.
+    pub fn set_remote_ice_credentials(&mut self, ufrag: String, pwd: String) -> Result<()> {
+        self.ice
+            .set_remote_credentials(ufrag, pwd)
+            .map_err(|e| TunnelError::Config(format!("remote credentials: {e}")))?;
+        Ok(())
+    }
+
     /// Overrides the send buffer cap.
     pub fn set_send_buffer_cap(&mut self, cap: usize) {
         self.send_buffer_cap = cap;
