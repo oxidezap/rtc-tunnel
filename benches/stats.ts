@@ -53,6 +53,8 @@ function runBackend(name: BackendName, host: string): Promise<number | null> {
         ...(PEER_CPUS ? { BENCH_PEER_CPUS: PEER_CPUS } : {}),
         BENCH_SKIP: "rtt,burst,cadence,lifecycle",
         BENCH_THROUGHPUT_MS: String(DURATION_MS),
+        BENCH_VIDEO_PAYLOAD: String(PAYLOAD),
+        BENCH_VIDEO_WINDOW: String(WINDOW),
         BENCH_CONNECT_SAMPLES: "1",
         BENCH_LIFECYCLE_COUNTS: "1",
       },
@@ -178,7 +180,7 @@ async function main(): Promise<void> {
       wins,
       verdict,
       affinity: DUT_CPUS
-        ? { pinned: true, dut: DUT_CPUS, peer: PEER_CPUS ?? null }
+        ? { pinned: true, dut: DUT_CPUS, peer: PEER_CPUS ?? null, logicalCpus: cpuCount }
         : { pinned: false, logicalCpus: cpuCount },
     })}`,
   );

@@ -117,6 +117,7 @@ if (report) {
 }
 
 if (env) {
+  found = true;
   lines.push("## Environment");
   lines.push("");
   lines.push(
@@ -324,7 +325,7 @@ if (statsText) {
   const stats = machineLine(statsText, "STATS_JSON ");
   if (stats) {
     const affinity = stats.affinity?.pinned
-      ? `pinned (DUT ${stats.affinity.dut}, peer ${stats.affinity.peer ?? "any"})`
+      ? `pinned (DUT ${stats.affinity.dut}, peer ${stats.affinity.peer ?? "any"}, ${stats.affinity.logicalCpus ?? "?"} logical CPUs)`
       : `unpinned (${stats.affinity?.logicalCpus ?? "?"} logical CPUs; alternating pair order is the control)`;
     lines.push(`CPU affinity: ${affinity}.`);
     lines.push("");

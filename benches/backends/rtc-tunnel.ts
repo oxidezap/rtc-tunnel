@@ -44,6 +44,10 @@ const host = benchHost();
 const RTT_PAYLOADS = [64, 256, 1200, 8192];
 const CONNECT_SAMPLES = Number(process.env.BENCH_CONNECT_SAMPLES ?? 50);
 const THROUGHPUT_MS = Number(process.env.BENCH_THROUGHPUT_MS ?? 5000);
+// Sustained video workload shape. The paired suite overrides these so its
+// reported payload and window always describe what was measured.
+const VIDEO_PAYLOAD_BYTES = Number(process.env.BENCH_VIDEO_PAYLOAD ?? 1200);
+const VIDEO_WINDOW = Number(process.env.BENCH_VIDEO_WINDOW ?? 256);
 // 0 makes the driver poll one event per crossing instead of batching.
 const EVENT_BATCH = Number(process.env.BENCH_EVENT_BATCH ?? 64);
 const BURST_MESSAGES = Number(process.env.BENCH_BURST_MESSAGES ?? 500);
@@ -208,7 +212,7 @@ async function main(): Promise<void> {
   if (!SKIP.has("throughput")) {
     for (const workload of [
       { name: "voice", payloadBytes: 160, window: 64 },
-      { name: "video", payloadBytes: 1200, window: 256 },
+      { name: "video", payloadBytes: VIDEO_PAYLOAD_BYTES, window: VIDEO_WINDOW },
     ]) {
       const peer = await startPeer({ host });
       const connection = await connect(module, peer);
