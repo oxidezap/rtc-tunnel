@@ -71,6 +71,6 @@
   "devDependencies": {
     "@types/node": "^26.5.1",
     "typescript": "^7.0.2",
-    "werift": "^0.24.4"
+    "werift": "^0.25.0"
   }
 }
