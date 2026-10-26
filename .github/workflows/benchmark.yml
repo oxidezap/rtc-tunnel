@@ -45,7 +45,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: nightly-2026-06-16
           targets: wasm32-unknown-unknown
@@ -54,7 +54,7 @@ jobs:
       # inherit another job's artifacts, and the walker must not descend into
       # stale hermetic homes. The prefix starts a fresh key so the previously
       # cached `target/cargo-home` copy is never restored again.
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-targets: false
           prefix-key: v1-rtc-tunnel-bench
@@ -75,7 +75,7 @@ jobs:
       - name: Build the benchmark dependencies
         run: scripts/build-bench.sh
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -111,7 +111,7 @@ jobs:
       # missing file warns instead of failing the run.
       - name: Upload the raw benchmark outputs
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: bench-outputs
           if-no-files-found: warn
